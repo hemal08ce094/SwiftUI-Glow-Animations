@@ -18,7 +18,7 @@ public struct GlowFlame: View {
                     RadialGradient(
                         gradient: Gradient(colors: [color.opacity(0.8), color.opacity(0)]),
                         center: .center,
-                        radius: size / 2
+                        startRadius: 0, endRadius: size / 2
                     )
                 )
                 .frame(width: size, height: size)
@@ -30,7 +30,7 @@ public struct GlowFlame: View {
                     RadialGradient(
                         gradient: Gradient(colors: [color, color.opacity(0.4)]),
                         center: .center,
-                        radius: size / 3
+                        startRadius: 0, endRadius: size / 3
                     )
                 )
                 .frame(width: size / 1.5, height: size / 1.5)

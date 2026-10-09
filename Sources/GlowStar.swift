@@ -46,7 +46,7 @@ public struct GlowStar: View {
                     RadialGradient(
                         gradient: Gradient(colors: [color.opacity(0.6), color.opacity(0)]),
                         center: .center,
-                        radius: size / 2
+                        startRadius: 0, endRadius: size / 2
                     )
                 )
                 .frame(width: size * 1.5, height: size * 1.5)
