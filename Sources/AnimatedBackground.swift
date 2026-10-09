@@ -66,7 +66,8 @@ public struct PulseBackground: View {
                     RadialGradient(
                         gradient: Gradient(colors: [colors[0].opacity(0.3), colors[0].opacity(0)]),
                         center: .center,
-                        radius: 300
+                        startRadius: 0,
+                        endRadius: 300
                     )
                 )
                 .scaleEffect(scale)
