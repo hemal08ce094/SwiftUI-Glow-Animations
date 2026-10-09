@@ -46,9 +46,3 @@ public struct GlowFlame: View {
     }
 }
 
-#Preview {
-    ZStack {
-        Color.black.ignoresSafeArea()
-        GlowFlame()
-    }
-}

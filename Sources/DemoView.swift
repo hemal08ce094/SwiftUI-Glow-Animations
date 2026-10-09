@@ -261,6 +261,3 @@ public struct CombinedDemo: View {
     }
 }
 
-#Preview {
-    DemoView()
-}

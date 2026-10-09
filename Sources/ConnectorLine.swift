@@ -45,12 +45,3 @@ public struct ConnectorLine: View {
     }
 }
 
-#Preview {
-    Canvas { context, canvasSize in
-        var path = Path()
-        path.move(to: CGPoint(x: 100, y: 100))
-        path.addLine(to: CGPoint(x: 300, y: 300))
-
-        context.stroke(path, with: .color(.white), lineWidth: 2)
-    }
-}

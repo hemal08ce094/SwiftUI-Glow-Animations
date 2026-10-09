@@ -438,15 +438,3 @@ public struct DiagonalGlowingLine: View {
     }
 }
 
-#Preview {
-    VStack(spacing: 20) {
-        TabView {
-            SpiralVortexAnimation()
-            RotatingCircleWithNodes()
-            MorphingFlowerShape()
-            GradientPillAnimation()
-            DiagonalGlowingLine()
-        }
-        .tabViewStyle(.page)
-    }
-}

@@ -41,16 +41,3 @@ public struct GlowButton: View {
     }
 }
 
-#Preview {
-    GlowButton(
-        title: "Details",
-        icon: "✨",
-        gradient: LinearGradient(
-            gradient: Gradient(colors: [Color(red: 1, green: 0.4, blue: 0.6), Color(red: 1, green: 0.6, blue: 0.2)]),
-            startPoint: .leading,
-            endPoint: .trailing
-        ),
-        action: {}
-    )
-    .padding()
-}

@@ -65,9 +65,3 @@ public struct GlowStar: View {
     }
 }
 
-#Preview {
-    ZStack {
-        Color.black.ignoresSafeArea()
-        GlowStar()
-    }
-}

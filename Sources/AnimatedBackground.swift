@@ -80,15 +80,3 @@ public struct PulseBackground: View {
     }
 }
 
-#Preview {
-    VStack(spacing: 20) {
-        AnimatedBackground(isDark: true)
-            .frame(height: 200)
-            .cornerRadius(10)
-
-        AnimatedBackground(isDark: false)
-            .frame(height: 200)
-            .cornerRadius(10)
-    }
-    .padding()
-}

@@ -92,16 +92,3 @@ public struct CharacterReveal: View {
     }
 }
 
-#Preview {
-    VStack(spacing: 40) {
-        ZStack {
-            Color.black.ignoresSafeArea()
-            TextReveal(text: "Opus 5.5 is cooking")
-        }
-
-        ZStack {
-            Color.black.ignoresSafeArea()
-            CharacterReveal(text: "Build it")
-        }
-    }
-}

@@ -7,13 +7,18 @@ let package = Package(
         .iOS(.v17)
     ],
     products: [
-        .library(name: "GlowAnimations", targets: ["GlowAnimations"]),
+        .library(
+            name: "GlowAnimations",
+            targets: ["GlowAnimations"]
+        ),
     ],
+    dependencies: [],
     targets: [
         .target(
             name: "GlowAnimations",
             dependencies: [],
-            path: "Sources"
+            path: "Sources",
+            publicHeadersPath: nil
         ),
     ]
 )
