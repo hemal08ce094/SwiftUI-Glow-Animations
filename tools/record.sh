@@ -29,20 +29,20 @@ BUNDLE_ID="com.hemalmodi.GlowAnimationsDemo"
 FALLBACK_UDID="CB91E8C4-291C-4B73-8431-4DB9B26D9D79"
 OUT="$ROOT/tools/out/$SCENE"
 
-if [[ -z "$UDID" ]]; then
-  UDID="$(xcrun simctl list devices booted -j | python3 -c '
-import json, sys
-for devs in json.load(sys.stdin)["devices"].values():
-    for d in devs:
-        if d["state"] == "Booted" and "iPhone" in d.get("deviceTypeIdentifier", ""):
-            print(d["udid"]); sys.exit()
-')"
-  if [[ -z "$UDID" ]]; then
-    UDID="$FALLBACK_UDID"
-    "$DEVLOCK" run xcrun simctl boot "$UDID"
-  fi
+UDID="${UDID:-$FALLBACK_UDID}"
+if ! xcrun simctl list devices booted | grep -q "$UDID"; then
+  "$DEVLOCK" run xcrun simctl boot "$UDID"
 fi
 echo "simulator: $UDID"
+
+# One recording at a time per simulator: install + launch + capture must not interleave.
+LOCK="/tmp/glow-record-$UDID.lock"
+until mkdir "$LOCK" 2>/dev/null; do
+  if [[ -f "$LOCK/pid" ]] && ! kill -0 "$(cat "$LOCK/pid")" 2>/dev/null; then rm -rf "$LOCK"; continue; fi
+  echo "record.sh: simulator busy, waiting..." >&2; sleep 10
+done
+echo $$ > "$LOCK/pid"
+trap 'rm -rf "$LOCK"' EXIT INT TERM
 
 if [[ "$SCENE" == "reel" ]]; then
   APP_ARGS=(-glow-reel -glow-chromeless)
