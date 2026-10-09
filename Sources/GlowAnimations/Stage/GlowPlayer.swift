@@ -21,21 +21,28 @@ public struct GlowPlayer: View {
     public var onStageRect: ((CGRect) -> Void)?
     /// Called with the wall-clock date that maps to program time `startOffset`.
     public var onStart: ((Date) -> Void)?
+    /// Seconds of solid `leadInColor` shown before t = 0; the cut to the scene is hard.
+    public var leadIn: Double
+    public var leadInColor: Color
 
-    @State private var startDate = Date()
+    @State private var clock = ProgramClock()
 
     public init(
         _ program: Program,
         loop: Bool = true,
         startOffset: Double = 0,
         onStageRect: ((CGRect) -> Void)? = nil,
-        onStart: ((Date) -> Void)? = nil
+        onStart: ((Date) -> Void)? = nil,
+        leadIn: Double = 0,
+        leadInColor: Color = .black
     ) {
         self.program = program
         self.loop = loop
         self.startOffset = startOffset
         self.onStageRect = onStageRect
         self.onStart = onStart
+        self.leadIn = leadIn
+        self.leadInColor = leadInColor
     }
 
     public init(scene: GlowScene, loop: Bool = true, startOffset: Double = 0) {
@@ -49,8 +56,14 @@ public struct GlowPlayer: View {
 
     public var body: some View {
         TimelineView(.animation) { context in
-            GlowStage(onStageRect: onStageRect) {
-                frame(at: time(at: context.date))
+            let elapsed = clock.elapsed(at: context.date)
+            ZStack {
+                GlowStage(onStageRect: onStageRect) {
+                    frame(at: time(elapsed: elapsed ?? 0))
+                }
+                if elapsed == nil {
+                    leadInColor
+                }
             }
         }
         .onAppear { restart() }
@@ -58,14 +71,14 @@ public struct GlowPlayer: View {
     }
 
     private func restart() {
-        let now = Date()
-        startDate = now
-        onStart?(now)
+        let start = Date().addingTimeInterval(leadIn)
+        clock.reset(start: start)
+        onStart?(start)
     }
 
-    /// Program time for a display-clock date, wrapped or clamped to the program duration.
-    func time(at date: Date) -> Double {
-        let elapsed = max(0, date.timeIntervalSince(startDate)) + startOffset
+    /// Program time for seconds since t = 0, wrapped or clamped to the program duration.
+    func time(elapsed seconds: Double) -> Double {
+        let elapsed = seconds + startOffset
         let duration = program.duration
         guard duration > 0 else { return 0 }
         return loop ? elapsed.truncatingRemainder(dividingBy: duration) : min(elapsed, duration)
@@ -77,5 +90,24 @@ public struct GlowPlayer: View {
         case .scene(let scene): GlowSceneView(scene: scene, t: t)
         case .reel: GlowReelView(t: t)
         }
+    }
+}
+
+/// Anchors t = 0 to the first display frame at or after the scheduled start, so that frame renders exactly t = 0.
+final class ProgramClock {
+    private var scheduled = Date()
+    private var anchor: Date?
+
+    func reset(start: Date) {
+        scheduled = start
+        anchor = nil
+    }
+
+    /// Seconds since t = 0, or nil while still in the lead-in.
+    func elapsed(at date: Date) -> Double? {
+        if let anchor { return max(0, date.timeIntervalSince(anchor)) }
+        guard date >= scheduled else { return nil }
+        anchor = date
+        return 0
     }
 }

@@ -10,9 +10,10 @@
 # Output: tools/out/<scene>/capture.mp4, app.log, f0001.png ...
 # Env:    SKIP_BUILD=1 reuses the last build in $DERIVED (default /tmp/glow-dd).
 #
-# Alignment: the recorder's "Recording started" line and the app's GLOW_T0 line
-# (wall clock at the player's first frame) share the Mac clock; their difference
-# is trimmed from the start of the video. Crop: the chromeless player fills the
+# Alignment: in chromeless mode the app shows pure green (#00FF00) from launch, holds it
+# for 1 s after the player appears, then hard-cuts to the scene at t = 0. Every frame of
+# the video is extracted and the first non-green frame after a green one becomes f0001.
+# GLOW_T0 (wall clock of t = 0) is logged for diagnostics only. Crop: the chromeless player fills the
 # screen and letterboxes a centred 9:16 stage, so the crop is the largest centred
 # 9:16 rect of the video. GLOW_STAGE_RECT in app.log records the rect in points.
 set -euo pipefail
@@ -82,22 +83,19 @@ PY
 )"
 xcrun simctl launch --stderr="$APP_LOG" "$UDID" "$BUNDLE_ID" "${APP_ARGS[@]}" >/dev/null
 
+# Cover the 1 s green lead-in after GLOW_T0 is logged, the requested time and a margin.
 python3 - "$APP_LOG" "$SECONDS_TO_RECORD" <<'PY'
 import sys, time
 deadline = time.time() + 20
 while time.time() < deadline and "GLOW_T0" not in open(sys.argv[1]).read():
     time.sleep(0.01)
-time.sleep(float(sys.argv[2]) + 0.5)
+time.sleep(1.0 + float(sys.argv[2]) + 0.7)
 PY
 kill -INT "$REC_PID"
 wait "$REC_PID" || true
 xcrun simctl terminate "$UDID" "$BUNDLE_ID" 2>/dev/null || true
 
-T0="$(grep -m1 GLOW_T0 "$APP_LOG" | awk '{print $2}')"
-[[ -n "$T0" ]] || { echo "no GLOW_T0 in $APP_LOG" >&2; exit 1; }
-OFFSET="$(python3 -c "print(max(0.0, $T0 - $REC_START))")"
-echo "t0 offset in video: ${OFFSET}s"
-grep GLOW_ "$APP_LOG" | grep -v GLOW_T0 || true
+grep GLOW_ "$APP_LOG" || true
 
 read -r VW VH < <(ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=p=0 "$VIDEO" | tr ',' ' ')
 CROP="$(python3 -c "
@@ -111,7 +109,40 @@ print(f'{cw}:{ch}:{(w - cw) // 2}:{(h - ch) // 2}')
 echo "video ${VW}x${VH}, crop $CROP"
 
 FRAMES="$(python3 -c "print(round($SECONDS_TO_RECORD * 30))")"
-ffmpeg -v error -y -ss "$OFFSET" -i "$VIDEO" \
-  -vf "fps=30,crop=$CROP,scale=720:1280:flags=lanczos,setsar=1" \
-  -frames:v "$FRAMES" "$OUT/f%04d.png"
-echo "wrote $(ls "$OUT"/f*.png | wc -l | tr -d ' ') frames to $OUT"
+ALL="$(mktemp -d /tmp/glow-frames.XXXXXX)"
+trap 'rm -rf "$LOCK" "$ALL"' EXIT INT TERM
+ffmpeg -v error -y -i "$VIDEO" \
+  -vf "fps=30,crop=$CROP,scale=720:1280:flags=lanczos,setsar=1" "$ALL/a%05d.png"
+
+# Centre 20x20 average of every frame; green = G > 200 and R, B < 80.
+SYNC="$(python3 - "$ALL" <<'PY'
+import glob, subprocess, sys
+files = sorted(glob.glob(sys.argv[1] + "/a*.png"))
+def avg(path):
+    raw = subprocess.run(
+        ["ffmpeg", "-v", "error", "-i", path, "-vf", "crop=20:20:350:630,scale=1:1:flags=area",
+         "-f", "rawvideo", "-pix_fmt", "rgb24", "-"], capture_output=True, check=True).stdout
+    return raw[0], raw[1], raw[2]
+seen_green = False
+for i, f in enumerate(files, 1):
+    r, g, b = avg(f)
+    if g > 200 and r < 80 and b < 80:
+        seen_green = True
+    elif seen_green:
+        print(i)
+        sys.exit()
+sys.exit("record.sh: no green-to-scene transition found" if seen_green else "record.sh: no green sync frame found")
+PY
+)" || { echo "record.sh: sync marker detection failed" >&2; exit 1; }
+echo "sync frame: $SYNC (30 fps video frame that becomes f0001)"
+
+TOTAL="$(ls "$ALL"/a*.png | wc -l | tr -d ' ')"
+AVAILABLE=$((TOTAL - SYNC + 1))
+if (( AVAILABLE < FRAMES )); then
+  echo "record.sh: only $AVAILABLE frames after sync, wanted $FRAMES" >&2
+  exit 1
+fi
+for ((n = 1; n <= FRAMES; n++)); do
+  mv "$ALL/$(printf 'a%05d.png' $((SYNC + n - 1)))" "$OUT/$(printf 'f%04d.png' "$n")"
+done
+echo "wrote $FRAMES frames to $OUT"

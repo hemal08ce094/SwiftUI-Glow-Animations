@@ -2,7 +2,7 @@ import GlowAnimations
 import SwiftUI
 
 /// Full-screen black player. Tap toggles a small overlay; chromeless mode (recording) shows
-/// nothing but the stage and logs the stage rect for tools/record.sh.
+/// nothing but the stage after a 1 s green sync pre-roll and logs the stage rect for tools/record.sh.
 struct PlayerScreen: View {
     var program: GlowPlayer.Program
     var chromeless: Bool
@@ -23,7 +23,7 @@ struct PlayerScreen: View {
             }, onStart: { date in
                 guard chromeless else { return }
                 HarnessLog.line(String(format: "GLOW_T0 %.4f", date.timeIntervalSince1970))
-            })
+            }, leadIn: chromeless ? 1.0 : 0, leadInColor: HarnessLog.syncGreen)
             .id(runID)
             .ignoresSafeArea()
             .accessibilityElement()
@@ -89,6 +89,9 @@ struct PlayerScreen: View {
 
 /// Unbuffered stderr lines parsed by tools/record.sh.
 enum HarnessLog {
+    /// Pre-roll colour tools/record.sh detects; the first non-green frame is t = 0.
+    static let syncGreen = Color(.sRGB, red: 0, green: 1, blue: 0)
+
     static func line(_ text: String) {
         FileHandle.standardError.write(Data((text + "\n").utf8))
     }

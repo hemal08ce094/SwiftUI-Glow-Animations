@@ -23,15 +23,15 @@ struct GlowAnimationsDemoApp: App {
     }
 }
 
-/// Holds black until the system launch transition has finished, then mounts the
-/// player, so the recorded t = 0 frame is the scene and not the launch crossfade.
+/// Holds sync green until the system launch transition has finished, then mounts the
+/// player, which keeps green for its 1 s lead-in and cuts to the scene at t = 0.
 private struct RecordingRoot: View {
     var program: GlowPlayer.Program
     @State private var ready = false
 
     var body: some View {
         ZStack {
-            Color.black.ignoresSafeArea()
+            HarnessLog.syncGreen.ignoresSafeArea()
             if ready {
                 PlayerScreen(program: program, chromeless: true, onClose: nil)
             }
