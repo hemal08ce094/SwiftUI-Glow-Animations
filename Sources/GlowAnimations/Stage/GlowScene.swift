@@ -21,18 +21,18 @@ public enum GlowScene: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
-    /// Scene length in seconds. Placeholders until each scene is implemented from its storyboard.
+    /// Scene length in seconds: the reference frame count / 30.
     public var duration: Double {
         switch self {
-        case .spark: 3.5
-        case .grow: 3.2
-        case .shape: 1.6
-        case .details: 2.3
-        case .rhythm: 5.0
-        case .workflow: 5.2
-        case .connects: 3.8
-        case .flow: 4.2
-        case .outro: 3.0
+        case .spark: 3.467
+        case .grow: 2.867
+        case .shape: 1.833
+        case .details: 2.367
+        case .rhythm: 5.133
+        case .workflow: 5.1
+        case .connects: 3.733
+        case .flow: 4.0
+        case .outro: 3.167
         }
     }
 
@@ -57,17 +57,28 @@ public enum GlowScene: String, CaseIterable, Identifiable, Sendable {
     }
 }
 
-/// Renders one scene at scene-local time `t` (seconds).
+/// Renders one scene at scene-local time `t` (seconds), with the reel title on top.
 public struct GlowSceneView: View {
     public var scene: GlowScene
     public var t: Double
+    public var showsTitle: Bool
 
-    public init(scene: GlowScene, t: Double) {
+    public init(scene: GlowScene, t: Double, showsTitle: Bool = true) {
         self.scene = scene
         self.t = t
+        self.showsTitle = showsTitle
     }
 
     public var body: some View {
+        ZStack {
+            content
+            if showsTitle { ReelTitle() }
+        }
+        .frame(width: 720, height: 1280)
+    }
+
+    @ViewBuilder
+    private var content: some View {
         switch scene {
         case .spark: SparkScene(t: t)
         case .grow: GrowScene(t: t)

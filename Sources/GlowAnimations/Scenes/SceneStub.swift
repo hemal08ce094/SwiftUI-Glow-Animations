@@ -13,14 +13,11 @@ struct SceneStub: View {
         let y = 640 + 180 * sin(p * .pi * 2)
 
         ZStack {
-            Circle()
-                .fill(GlowTheme.gold)
-                .frame(width: 36, height: 36)
-                .bloom(radius: 60, intensity: 1.2)
+            GlowDot(coreRadius: 18)
                 .position(x: x, y: y)
 
             CaptionText("Stub:", accent: scene.displayName.lowercased(), fontSize: 52)
-                .position(x: 360, y: 300)
+                .position(x: 360, y: 520)
 
             Text(verbatim: String(format: "t = %.2f s", t))
                 .font(GlowFonts.sans(weight: .light, size: 32))

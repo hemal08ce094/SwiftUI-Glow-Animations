@@ -1,13 +1,19 @@
 import SwiftUI
 
-/// Palette sampled from the reference reel. Values other than black are placeholders
-/// until the storyboard specs land.
+/// Palette sampled from the reference reel.
 public enum GlowTheme {
-    public static let black = Color(hex: 0x000000)
+    public static let black = Color(hex: 0x010101)
     public static let cream = Color(hex: 0xF6EFE6)
-    public static let gold = Color(hex: 0xFFC24A)
-    public static let orange = Color(hex: 0xFF8A3D)
-    public static let pink = Color(hex: 0xFF4D6D)
+    /// Caption accent gold.
+    public static let gold = Color(hex: 0xE9A94C)
+    /// Inner halo of a point light.
+    public static let goldHot = Color(hex: 0xFFD36A)
+    /// Outer halo of a point light.
+    public static let amber = Color(hex: 0xF0A030)
+    public static let pinkPill = Color(hex: 0xFD7B80)
+    public static let orangePill = Color(hex: 0xDE802D)
+    public static let orange = orangePill
+    public static let pink = pinkPill
 }
 
 public extension Color {
