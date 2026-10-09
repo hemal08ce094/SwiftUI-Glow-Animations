@@ -72,14 +72,14 @@ private struct ProgramRow: View {
                 } else if let number {
                     Text(number, format: .number.precision(.integerLength(2)))
                         .monospacedDigit()
-                        .foregroundStyle(.secondary)
+                        .foregroundStyle(Color.secondary)
                 }
             }
             .frame(minWidth: 26, alignment: .leading)
             .accessibilityHidden(true)
 
             title
-                .foregroundStyle(.primary)
+                .foregroundStyle(Color.primary)
                 .fontWeight(accent ? .semibold : .regular)
 
             Spacer(minLength: 12)
@@ -87,7 +87,7 @@ private struct ProgramRow: View {
             Text(Measurement(value: duration, unit: UnitDuration.seconds),
                  format: .measurement(width: .abbreviated, numberFormatStyle: .number.precision(.fractionLength(1))))
                 .monospacedDigit()
-                .foregroundStyle(.secondary)
+                .foregroundStyle(Color.secondary)
         }
         .contentShape(Rectangle())
     }

@@ -19,7 +19,10 @@ struct PlayerScreen: View {
 
             GlowPlayer(program, loop: loop, onStageRect: { rect in
                 guard chromeless else { return }
-                print(String(format: "GLOW_STAGE_RECT %.2f %.2f %.2f %.2f", rect.minX, rect.minY, rect.width, rect.height))
+                HarnessLog.line(String(format: "GLOW_STAGE_RECT %.2f %.2f %.2f %.2f", rect.minX, rect.minY, rect.width, rect.height))
+            }, onStart: { date in
+                guard chromeless else { return }
+                HarnessLog.line(String(format: "GLOW_T0 %.4f", date.timeIntervalSince1970))
             })
             .id(runID)
             .ignoresSafeArea()
@@ -81,5 +84,12 @@ struct PlayerScreen: View {
             Spacer()
         }
         .tint(GlowTheme.gold)
+    }
+}
+
+/// Unbuffered stderr lines parsed by tools/record.sh.
+enum HarnessLog {
+    static func line(_ text: String) {
+        FileHandle.standardError.write(Data((text + "\n").utf8))
     }
 }

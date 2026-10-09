@@ -8,17 +8,39 @@ struct GlowAnimationsDemoApp: App {
     init() {
         let registered = GlowFonts.registerIfNeeded()
         for (name, ok) in registered.sorted(by: { $0.key < $1.key }) {
-            print("GLOW_FONT \(name) \(ok ? "ok" : "missing")")
+            HarnessLog.line("GLOW_FONT \(name) \(ok ? "ok" : "missing")")
         }
     }
 
     var body: some Scene {
         WindowGroup {
             if launch.chromeless, let program = launch.program {
-                PlayerScreen(program: program, chromeless: true, onClose: nil)
+                RecordingRoot(program: program)
             } else {
                 SceneListView(initialProgram: launch.program)
             }
+        }
+    }
+}
+
+/// Holds black until the system launch transition has finished, then mounts the
+/// player, so the recorded t = 0 frame is the scene and not the launch crossfade.
+private struct RecordingRoot: View {
+    var program: GlowPlayer.Program
+    @State private var ready = false
+
+    var body: some View {
+        ZStack {
+            Color.black.ignoresSafeArea()
+            if ready {
+                PlayerScreen(program: program, chromeless: true, onClose: nil)
+            }
+        }
+        .statusBarHidden(true)
+        .persistentSystemOverlays(.hidden)
+        .task {
+            try? await Task.sleep(for: .milliseconds(800))
+            ready = true
         }
     }
 }
