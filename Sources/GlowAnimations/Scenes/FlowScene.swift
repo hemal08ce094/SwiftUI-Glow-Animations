@@ -26,7 +26,8 @@ enum FlowTimeline {
     static let restRadius: CGFloat = 117
     static let handOffRadius: CGFloat = 25.5
 
-    /// Sphere radius while the blob is a single ball. Grows 25.5 → 117 (f0735 → f0751), shrinks 123 → 33 (f0846 → f0858).
+    /// Sphere radius while the blob is a single ball: grows 25.5 → 117 (f0735 → f0751) and shrinks
+    /// 125 → 33 (f0846 → f0858, ease-in-out). Radii are half-maximum edges.
     static func sphereRadius(at t: Double) -> CGFloat {
         if t < 2 {
             let u = Ease.clamp01((t + 0.012) / 0.55)

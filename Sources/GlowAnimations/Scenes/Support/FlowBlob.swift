@@ -21,7 +21,7 @@ enum FlowBlob {
         drawFeatherAndGlow(shape, in: ctx, size: size)
 
         var body = ctx
-        body.addFilter(.blur(radius: edgeSoftness))
+        body.addFilter(.blur(radius: edgeSoftness * max(size, 0.35)))
         body.drawLayer { layer in
             layer.fill(shape, with: verticalRamp())
             var inside = layer
@@ -44,7 +44,7 @@ enum FlowBlob {
         for step: CGFloat in [5, 8, 11, 14, 17, 20, 23] {
             let offset = step * size
             var band = context
-            band.opacity *= 0.15
+            band.opacity *= 0.19
             band.clip(to: shape.applying(CGAffineTransform(translationX: first.dx * offset, y: first.dy * offset)), options: .inverse)
             band.clip(to: shape.applying(CGAffineTransform(translationX: second.dx * offset, y: second.dy * offset)), options: .inverse)
             band.fill(shape, with: .color(Color(hex: 0xFFD4BE)))
@@ -98,10 +98,8 @@ enum FlowBlob {
     static let rimRings = nestedAlphas((1...16).map { CGFloat($0) * 6 }, rimLevel)
 
     private static func drawFeatherAndGlow(_ shape: Path, in context: GraphicsContext, size: CGFloat) {
-        var outside = context
-        outside.clip(to: shape, options: .inverse)
         for ring in glowRings {
-            var stroke = outside
+            var stroke = context
             stroke.opacity *= ring.alpha
             let reach = ring.distance * (0.55 + 0.45 * size)
             stroke.stroke(shape, with: verticalRamp(), style: StrokeStyle(lineWidth: reach * 2, lineJoin: .round))
@@ -111,7 +109,7 @@ enum FlowBlob {
     private static func drawRim(_ shape: Path, in context: GraphicsContext, size: CGFloat) {
         for ring in rimRings {
             var stroke = context
-            stroke.opacity *= ring.alpha
+            stroke.opacity *= ring.alpha * Double(size)
             stroke.blendMode = .multiply
             stroke.stroke(shape, with: .color(Color(hex: 0xFCC48E)), style: StrokeStyle(lineWidth: ring.distance * size * 2, lineJoin: .round))
         }
