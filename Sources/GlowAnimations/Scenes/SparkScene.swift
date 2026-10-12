@@ -8,7 +8,17 @@ public struct SparkScene: View {
 
     public init(t: Double) { self.t = t }
 
+    /// The stage's scene durations are rounded to 1 ms, so the reel can ask for one frame past
+    /// this scene's last reference frame; that frame belongs to scene 2.
     public var body: some View {
+        if 1 + 30 * t >= 104.5 {
+            GrowScene(t: t - 104.0 / 30)
+        } else {
+            content
+        }
+    }
+
+    private var content: some View {
         ZStack {
             Canvas(rendersAsynchronously: false) { context, _ in
                 SparkPainter(t: t).paint(context)

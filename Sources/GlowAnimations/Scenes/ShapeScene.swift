@@ -133,9 +133,10 @@ struct PillRenderer {
         var bloom = context
         bloom.blendMode = .plusLighter
         bloom.drawLayer { layer in
-            layer.addFilter(.blur(radius: 14))
-            layer.opacity = 0.55
-            layer.fill(capsule, with: .color(GlowRGB(hex: 0x5A1610).color))
+            layer.addFilter(.blur(radius: 26))
+            layer.opacity = 0.8
+            layer.fill(Path(roundedRect: rect.insetBy(dx: -10, dy: -14), cornerRadius: height / 2 + 14),
+                       with: .color(GlowRGB(hex: 0x4A140C).color))
         }
         let shading = GraphicsContext.Shading.linearGradient(
             Self.gradient, startPoint: CGPoint(x: rect.minX, y: 0), endPoint: CGPoint(x: rect.maxX, y: 0))
