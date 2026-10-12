@@ -19,7 +19,7 @@ public struct GrowScene: View {
                 lead: "Let it",
                 accent: "grow",
                 fontSize: 44,
-                baselineY: 655,
+                baselineY: 656,
                 frame: GrowGeometry.startFrame + 30 * t,
                 timings: [
                     CaptionWordTiming(inFrame: 113.5, inFrames: 11, outFrame: 165.5, outFrames: 7),
@@ -56,11 +56,11 @@ enum GrowGeometry {
         (150, 164), (152, 164), (154, 166), (156, 167), (158, 167), (160, 166), (162, 163),
         (164, 162), (166, 161), (168, 161), (170, 169), (172, 171), (173, 168), (174, 163),
         (175, 161), (176, 158), (177, 150), (178, 134), (179, 110), (180, 80), (181, 48),
-        (182, 28), (183, 18), (184, 12), (185, 10), (186, 9.5),
+        (182, 28), (183, 18), (184, 12), (185, 9.5), (186, 8.5),
     ])
 
     /// Petal sharpness: 1 gives round lobes with cusped valleys, higher narrows the petals.
-    static let petalExponent = FrameTrack(origin: 0, [(176, 1.0), (180, 1.8), (184, 2.0)])
+    static let petalExponent = FrameTrack(origin: 0, [(176, 1.0), (180, 1.8), (184, 2.0), (186, 2.2)])
 
     /// Extra spin of the collapsing flower on top of the node phase (degrees), f0171–f0185.
     static let collapseSpin = FrameTrack(origin: 0, [
@@ -229,7 +229,7 @@ private struct GrowPainter {
 
     /// Radius of a node before it reaches the ring, by frames from its 130 px crossing.
     private static let flight = FrameTrack(origin: 0, [
-        (-4.3, 0), (-3, 55), (-2, 80), (-1, 103), (0, 130), (1, 155), (2, 170),
+        (-4.2, 0), (-3, 33), (-2, 64), (-1, 98), (0, 130), (1, 155), (2, 170),
     ])
     /// How far a node overshoots the ring after arriving, by frames from its 130 px crossing.
     private static let overshoot = FrameTrack(origin: 0, [
@@ -238,7 +238,7 @@ private struct GrowPainter {
     private static let nodeFade = FrameTrack(origin: 0, [(176, 1), (180, 0)])
 
     /// Reference frame at which node k crosses r = 130 on its way out.
-    private static let crossing: [Double] = [109.8, 110.0, 110.9, 113.3, 114.0, 115.1]
+    private static let crossing: [Double] = [108.9, 109.9, 110.9, 112.1, 113.6, 115.1]
 
     private func nodeRadius(_ k: Int) -> Double {
         let local = frame - Self.crossing[k]
@@ -255,7 +255,7 @@ private struct GrowPainter {
         let phase = GrowGeometry.petalAngle(frame: frame)
         for k in 0..<6 {
             let local = frame - Self.crossing[k]
-            guard local > -4.3 else { continue }
+            guard local > -4.2 else { continue }
             let r = nodeRadius(k)
             let a = (phase + 60 * Double(k)) * .pi / 180
             let dir = CGVector(dx: cos(a), dy: sin(a))
@@ -263,8 +263,9 @@ private struct GrowPainter {
             drawTail(context, node: p, dir: dir, radius: r, local: local)
             drawArrivalRipple(context, at: p, local: local)
             let twinkle = 0.85 + 0.15 * sin(2 * .pi * 3 * t + Double(k))
-            GrowProfiles.node.scaled(0.6 + 0.4 * fade)
-                .draw(in: context, at: p, opacity: twinkle * fade * Ease.progress(local, -4.3, -3.3))
+            let arrival = Ease.smoothstep((local + 0.5) / 2.5)
+            GrowProfiles.node.scaled((0.6 + 0.4 * fade) * (0.4 + 0.6 * arrival))
+                .draw(in: context, at: p, opacity: twinkle * fade * Ease.progress(local, -4.2, -3))
         }
     }
 
@@ -360,11 +361,12 @@ struct AsteriskRenderer {
         AsteriskRenderer.halo.scaled(scale).draw(in: context, at: center, opacity: opacity * halo)
         let shading = GraphicsContext.Shading.radialGradient(fill, center: center, startRadius: 0, endRadius: outer)
         ctx.drawLayer { layer in
-            layer.opacity = 0.6 * opacity * halo
-            layer.addFilter(.blur(radius: 3 * scale))
-            layer.fill(shape, with: shading)
+            layer.opacity = min(1, 0.85 * opacity * halo)
+            layer.addFilter(.blur(radius: 4.5 * scale))
+            layer.fill(shape, with: .color(GlowRGB(hex: 0xE87818).color))
         }
-        var core = ctx
+        var core = context
+        core.blendMode = .normal
         core.opacity = opacity
         core.fill(shape, with: shading)
     }

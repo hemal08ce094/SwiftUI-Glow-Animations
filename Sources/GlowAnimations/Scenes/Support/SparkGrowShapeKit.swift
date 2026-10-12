@@ -261,6 +261,6 @@ struct TimedCaption: View {
         if isAccent {
             return Text(verbatim: word).font(GlowFonts.serifItalic(size: fontSize)).foregroundColor(GlowTheme.gold)
         }
-        return Text(verbatim: word).font(GlowFonts.sans(weight: .regular, size: fontSize)).foregroundColor(.white)
+        return Text(verbatim: word).font(GlowFonts.sans(weight: .light, size: fontSize)).foregroundColor(.white)
     }
 }
