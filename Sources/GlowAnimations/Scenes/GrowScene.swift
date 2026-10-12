@@ -130,28 +130,47 @@ enum GrowGeometry {
         return path
     }
 
-    /// Ring colour relative to the hot angle ψ (degrees), sampled at f0150.
-    static let base = GlowRGB(hex: 0xE2D0BF)
+    /// Ring colour relative to the hot angle ψ (degrees): the spec's saturated hot segment on a
+    /// cream line whose bright half leans yellow.
+    static let base = GlowRGB(hex: 0xF4E6D2)
     static let hotStops: [(Double, GlowRGB)] = [
-        (-60, base), (-45, GlowRGB(hex: 0xF5D0C0)), (-30, GlowRGB(hex: 0xFFD9B6)),
-        (-15, GlowRGB(hex: 0xFCA27A)), (0, GlowRGB(hex: 0xF08A66)), (15, GlowRGB(hex: 0xF89C74)),
-        (30, GlowRGB(hex: 0xFFCD85)), (45, GlowRGB(hex: 0xFFE39A)), (60, GlowRGB(hex: 0xFFF7A0)),
-        (75, GlowRGB(hex: 0xFFF4BA)), (90, GlowRGB(hex: 0xFFFEE6)), (105, GlowRGB(hex: 0xFFEED3)),
-        (125, base),
+        (-70, base), (-48, GlowRGB(hex: 0xFFB8A0)), (-28, GlowRGB(hex: 0xFF967A)), (0, GlowRGB(hex: 0xFF845E)),
+        (22, GlowRGB(hex: 0xFFA070)), (45, GlowRGB(hex: 0xFFD690)), (75, GlowRGB(hex: 0xFFF89E)),
+        (105, GlowRGB(hex: 0xFFFFEE)), (140, GlowRGB(hex: 0xFFFFE0)), (180, base),
     ]
 
-    /// Conic gradient for the outline: `heat` 1 is the full hot segment, 0 a uniform cream line.
-    static func ringGradient(heat: Double, alpha: Double, glow: Bool) -> Gradient {
-        let cream = GlowRGB(hex: 0xF4E2C8)
+    /// Conic gradient for the outline core: `heat` 1 is the full hot segment, 0 a uniform warm cream line.
+    static func ringGradient(heat: Double, alpha: Double) -> Gradient {
+        let cream = GlowRGB(hex: 0xF0DCC0)
         var stops: [Gradient.Stop] = []
         for rel in stride(from: -180.0, through: 180.0, by: 7.5) {
-            let hot = hotColour(rel)
-            let colour = GlowRGB.lerp(cream, hot, heat)
-            let isHot = rel >= -45 && rel <= 110
-            let farSide = 1 - 0.25 * max(0, cos((rel - 180) * .pi / 180))
-            var a = alpha * Ease.lerp(0.9, isHot ? 0.85 : 0.8 * farSide, heat)
-            if glow { a *= Ease.lerp(0.1, isHot ? 0.16 : 0.08, heat) }
+            let colour = GlowRGB.lerp(cream, hotColour(rel), heat)
+            let dimHalf = rel < -70 || rel > 140
+            let a = alpha * Ease.lerp(0.95, dimHalf ? 0.82 : 1, heat)
             stops.append(.init(color: colour.color(opacity: min(1, a)), location: (rel + 180) / 360))
+        }
+        return Gradient(stops: stops)
+    }
+
+    /// Amber bloom under the line, turning red-orange under the hot segment.
+    static func bloomGradient(heat: Double, alpha: Double) -> Gradient {
+        let amber = GlowRGB(hex: 0xF0A030), ember = GlowRGB(hex: 0xE04A1C)
+        var stops: [Gradient.Stop] = []
+        for rel in stride(from: -180.0, through: 180.0, by: 7.5) {
+            let inHot = heat * max(0, 1 - abs(rel + 10) / 55)
+            stops.append(.init(color: GlowRGB.lerp(amber, ember, inHot).color(opacity: min(1, 0.68 * alpha)),
+                               location: (rel + 180) / 360))
+        }
+        return Gradient(stops: stops)
+    }
+
+    /// Low-alpha wide pass that lets the hot segment bleed red-orange into its glow.
+    static func hotGlowGradient(heat: Double, alpha: Double) -> Gradient {
+        var stops: [Gradient.Stop] = []
+        for rel in stride(from: -180.0, through: 180.0, by: 7.5) {
+            let inHot = max(0, 1 - abs(rel - 20) / 70)
+            stops.append(.init(color: hotColour(rel).color(opacity: min(1, alpha * heat * 0.14 * inHot)),
+                               location: (rel + 180) / 360))
         }
         return Gradient(stops: stops)
     }
@@ -165,17 +184,21 @@ enum GrowGeometry {
         return base
     }
 
-    /// Strokes the ring/flower outline with the rotating hot segment.
+    /// Strokes the ring/flower outline: warm amber bloom, hot-segment bleed, then the cream core.
     static func strokeOutline(_ path: Path, in context: GraphicsContext, frame n: Double, heat: Double, alpha: Double) {
         guard alpha > 0.001 else { return }
         var ctx = context
         ctx.blendMode = .plusLighter
         let angle = Angle.degrees(hotAngle.value(frame: n) - 180)
-        let glow = GraphicsContext.Shading.conicGradient(ringGradient(heat: heat, alpha: alpha, glow: true), center: center, angle: angle)
-        let core = GraphicsContext.Shading.conicGradient(ringGradient(heat: heat, alpha: alpha, glow: false), center: center, angle: angle)
-        ctx.stroke(path, with: glow, style: StrokeStyle(lineWidth: 11, lineJoin: .round))
-        ctx.stroke(path, with: glow, style: StrokeStyle(lineWidth: 5, lineJoin: .round))
-        ctx.stroke(path, with: core, style: StrokeStyle(lineWidth: 1.8, lineJoin: .round))
+        let bloom = GraphicsContext.Shading.conicGradient(bloomGradient(heat: heat, alpha: alpha), center: center, angle: angle)
+        ctx.drawLayer { layer in
+            layer.addFilter(.blur(radius: 5.5))
+            layer.stroke(path, with: bloom, style: StrokeStyle(lineWidth: 3.5, lineJoin: .round))
+        }
+        let hot = GraphicsContext.Shading.conicGradient(hotGlowGradient(heat: heat, alpha: alpha), center: center, angle: angle)
+        let core = GraphicsContext.Shading.conicGradient(ringGradient(heat: heat, alpha: alpha), center: center, angle: angle)
+        ctx.stroke(path, with: hot, style: StrokeStyle(lineWidth: 6, lineJoin: .round))
+        ctx.stroke(path, with: core, style: StrokeStyle(lineWidth: 2, lineJoin: .round))
     }
 }
 

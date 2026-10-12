@@ -93,8 +93,8 @@ private struct ShapePainter {
         let glow = Self.pulseGlow.value(frame: frame)
         var ctx = context
         ctx.blendMode = .plusLighter
-        let colour = GlowRGB(hex: 0xFFCC91)
-        let passes: [(CGFloat, Double)] = [(12, 0.07 * glow), (5, 0.2 * glow), (1.3, 1.0)]
+        let colour = GlowRGB(hex: 0xF0A060)
+        let passes: [(CGFloat, Double)] = [(12, 0.16 * glow + 0.08), (5, 0.4 * glow + 0.15), (1.5, 1.9)]
         for (width, a) in passes {
             ctx.stroke(path, with: .color(colour.color(opacity: min(1, alpha * a))), style: StrokeStyle(lineWidth: width))
         }
