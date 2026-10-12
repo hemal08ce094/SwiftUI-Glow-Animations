@@ -69,7 +69,23 @@ Because nothing is stateful, variations are a matter of what time you feed in an
 
 ## How the match was verified
 
-`docs/storyboard/` holds a frame-accurate spec per scene, measured from the reference at 30 fps: positions, radii, colours, easing laws and the key frames to hit. The implementation was then recorded on an iPhone simulator with `tools/record.sh`, which reads a per-frame binary timecode the demo app draws outside the stage, so every captured frame maps to an exact program time. `tools/compare-sheet.sh` builds the reference-versus-ours sheets, and the agents fitted positions and colours to the measured frames until they agreed within a few pixels and a frame. Where the spec and the reference disagreed, the reference won. See `docs/architecture.md`.
+`docs/storyboard/` holds a frame-accurate spec per scene, measured from the reference at 30 fps: positions, radii, colours, easing laws and the key frames to hit. The implementation was then recorded on an iPhone simulator with `tools/record.sh`, which reads a per-frame binary timecode the demo app draws outside the stage, so every captured frame maps to an exact program time. `tools/compare-sheet.sh` builds the reference-versus-ours sheets, and positions and colours were fitted to the measured frames until they agreed within a few pixels and a frame. Where the spec and the reference disagreed, the reference won. See `docs/architecture.md`.
+
+Across the full 950-frame reel, the mean absolute pixel difference between the reference and our frames (greyscale, 90 × 160 downsample, 0–255 scale) is 1.44, and no single frame exceeds 4.9. Per scene:
+
+| Scene | Mean | Worst frame |
+|---|---|---|
+| Spark | 1.64 | 4.9 (flash peak) |
+| Grow | 1.41 | 1.9 |
+| Shape | 0.77 | 1.2 |
+| Details | 1.97 | 4.0 (edge-on swing) |
+| Rhythm | 1.73 | 3.5 |
+| Workflow | 1.81 | 3.3 |
+| Connects | 0.85 | 2.3 |
+| Flow | 1.54 | 2.4 |
+| Outro | 0.74 | 1.1 |
+
+Known remaining differences: the flash at the end of Spark is 10–15 % dimmer than the reference for two frames; the Details card is slightly wider while it swings edge-on with motion blur; the Flow blob's lobe seams are smoother than the reference's.
 
 ## Licence
 
