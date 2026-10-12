@@ -133,7 +133,9 @@ enum FlowTimeline {
 struct FlowCaption: View {
     var t: Double
 
-    static let fontSize: CGFloat = 46
+    /// Fitted to the f0800 word extents: "Stay in" x 254–379, "flow" x 398–467.
+    static let fontSize: CGFloat = 44.2
+    static let accentSize: CGFloat = 48.8
     static let baselineY: CGFloat = 653
 
     var body: some View {
@@ -141,10 +143,10 @@ struct FlowCaption: View {
         let exit = Ease.clamp01((t - 3.48) / 0.27)
         let line = HStack(alignment: .firstTextBaseline, spacing: 0) {
             Text(verbatim: "Stay in")
-                .font(GlowFonts.sans(weight: .regular, size: Self.fontSize))
+                .font(GlowFonts.sans(weight: .light, size: Self.fontSize))
             Color.clear.frame(width: CaptionReveal.spaceWidth(fontSize: Self.fontSize), height: 1)
             Text(verbatim: "flow")
-                .font(GlowFonts.serifItalic(size: Self.fontSize))
+                .font(GlowFonts.serifItalic(size: Self.accentSize))
         }
         .foregroundStyle(Color(hex: 0xFEF8EA))
         .fixedSize()

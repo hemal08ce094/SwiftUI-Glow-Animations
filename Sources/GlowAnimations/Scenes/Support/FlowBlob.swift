@@ -31,10 +31,45 @@ enum FlowBlob {
             drawRim(shape, in: inside, size: size)
             drawEdgeBand(shape, in: inside, toward: CGVector(dx: -0.707, dy: -0.707), steps: [3, 6, 9, 12, 15, 18, 21, 24],
                          size: size, color: Color(hex: 0xB06038), alpha: 0.15)
+            drawRimLight(shape, in: inside, size: size)
+            drawSeams(balls, near: shape, in: inside)
         }
     }
 
-    static let edgeSoftness: CGFloat = 4.5
+    static let edgeSoftness: CGFloat = 3.4
+
+    /// Inner rim light on the lit (left and upper-left) edges, f0770 row 600: the reference holds 187–192 luma
+    /// for ≈ 16 px inside the left edge against 156–166 in the interior, while the far edge falls off with no rim.
+    /// Screened pale peach (`#FFAC80` sampled in the band) over the part a right-shifted copy no longer covers.
+    private static func drawRimLight(_ shape: Path, in context: GraphicsContext, size: CGFloat) {
+        let direction = CGVector(dx: 0.94, dy: 0.34)
+        for step: CGFloat in [4, 8, 12, 16, 20, 24, 28] {
+            let offset = step * max(size, 0.5)
+            var band = context
+            band.opacity *= 0.075
+            band.blendMode = .screen
+            band.clip(to: shape.applying(CGAffineTransform(translationX: direction.dx * offset, y: direction.dy * offset)), options: .inverse)
+            band.fill(shape, with: .color(Color(hex: 0xFFE2C4)))
+        }
+    }
+
+    /// Where two lobes meet at the surface, each lobe's outline inside the other reads as a faint 1 px seam
+    /// at 85 %, kept to the outer 22 px so buried lobes leave no lines.
+    private static func drawSeams(_ balls: [BlobBall], near shape: Path, in context: GraphicsContext) {
+        guard balls.count > 1 else { return }
+        var context = context
+        context.clip(to: shape.strokedPath(StrokeStyle(lineWidth: 44, lineJoin: .round)))
+        for (i, ball) in balls.enumerated() {
+            for (j, other) in balls.enumerated() where i != j {
+                let gap = hypot(ball.center.x - other.center.x, ball.center.y - other.center.y)
+                guard gap < ball.radius + other.radius, gap + ball.radius > other.radius + 4 else { continue }
+                var seam = context
+                seam.blendMode = .multiply
+                seam.clip(to: disc(other.center, other.radius - 4))
+                seam.stroke(disc(ball.center, ball.radius), with: .color(Color(white: 0.85)), lineWidth: 1)
+            }
+        }
+    }
 
     /// Pale band inside the rim from the top round to the left (normals ≈ 60°–200°, peak `#F9BFA1` 7–17 px
     /// inside on f0748): the body minus two copies slid along directions whose half-planes intersect there.
@@ -61,11 +96,11 @@ enum FlowBlob {
         context.fill(disc(c, ball.radius * 0.85), with: .radialGradient(gradient, center: c, startRadius: 0, endRadius: ball.radius * 0.85))
     }
 
-    /// Screen-space fill, sampled on f0792/f0812: `#FC5A40` at y 450, `#FE8040` 560, `#FDA84C` 660, `#FFBC5A` 800.
+    /// Screen-space fill, sampled on f0770/f0792/f0812: `#FC5A40` at y 450, `#FE7634` 560, `#FD9E46` 660, `#FFBC5A` 800.
     static func verticalRamp() -> GraphicsContext.Shading {
         let top: CGFloat = 450
         let bottom: CGFloat = 800
-        let stops: [(y: CGFloat, hex: UInt32)] = [(450, 0xFC5A40), (560, 0xFE8040), (660, 0xFDA84C), (800, 0xFFBC5A)]
+        let stops: [(y: CGFloat, hex: UInt32)] = [(450, 0xFC5A40), (560, 0xFE7634), (660, 0xFD9E46), (800, 0xFFBC5A)]
         let gradient = Gradient(stops: stops.map { .init(color: Color(hex: $0.hex), location: ($0.y - top) / (bottom - top)) })
         return .linearGradient(gradient, startPoint: CGPoint(x: 0, y: top), endPoint: CGPoint(x: 0, y: bottom))
     }
