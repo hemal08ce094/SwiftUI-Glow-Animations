@@ -86,7 +86,7 @@ public struct CaptionReveal: View {
     private func text(_ word: String, isAccent: Bool) -> Text {
         guard isAccent else {
             return Text(verbatim: word)
-                .font(GlowFonts.sans(weight: .regular, size: fontSize))
+                .font(GlowFonts.sans(weight: .light, size: fontSize))
                 .foregroundColor(.white)
         }
         switch accentStyle {
@@ -95,13 +95,13 @@ public struct CaptionReveal: View {
         case .serifItalicWhite:
             return Text(verbatim: word).font(GlowFonts.serifItalic(size: fontSize)).foregroundColor(.white)
         case .none:
-            return Text(verbatim: word).font(GlowFonts.sans(weight: .regular, size: fontSize)).foregroundColor(.white)
+            return Text(verbatim: word).font(GlowFonts.sans(weight: .light, size: fontSize)).foregroundColor(.white)
         }
     }
 
     static func spaceWidth(fontSize: CGFloat) -> CGFloat {
         GlowFonts.registerIfNeeded()
-        let font = CTFontCreateWithName("Outfit-Regular" as CFString, fontSize, nil)
+        let font = CTFontCreateWithName("Outfit-Light" as CFString, fontSize, nil)
         let line = CTLineCreateWithAttributedString(
             NSAttributedString(string: " ", attributes: [NSAttributedString.Key(kCTFontAttributeName as String): font])
         )
