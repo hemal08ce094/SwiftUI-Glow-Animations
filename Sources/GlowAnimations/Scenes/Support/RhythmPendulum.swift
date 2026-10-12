@@ -298,17 +298,17 @@ struct RhythmCaption: View {
     let frame: Double
 
     static let baselineY: CGFloat = 891
-    static let originX: CGFloat = 207.7
-    static let leadSize: CGFloat = 40
+    static let originX: CGFloat = 207.4
+    static let leadSize: CGFloat = 40.6
     static let accentSize: CGFloat = 46
-    static let accentGap: CGFloat = 13
+    static let accentGap: CGFloat = 11.5
 
     var body: some View {
         let reveal = Ease.progress(frame, 362.5, 379)
         let leave = Ease.progress(frame, 454, 461.5)
         let line = HStack(alignment: .firstTextBaseline, spacing: Self.accentGap) {
             Text(verbatim: "Find your")
-                .font(GlowFonts.sans(weight: .regular, size: Self.leadSize))
+                .font(GlowFonts.sans(weight: .light, size: Self.leadSize))
                 .foregroundStyle(Color.white)
             Text(verbatim: "rhythm")
                 .font(GlowFonts.serifItalic(size: Self.accentSize))
@@ -332,7 +332,7 @@ struct RhythmCaption: View {
 
     private static let ascent: CGFloat = {
         GlowFonts.registerIfNeeded()
-        let lead = CTFontGetAscent(CTFontCreateWithName("Outfit-Regular" as CFString, leadSize, nil))
+        let lead = CTFontGetAscent(CTFontCreateWithName("Outfit-Light" as CFString, leadSize, nil))
         let accent = CTFontGetAscent(CTFontCreateWithName("InstrumentSerif-Italic" as CFString, accentSize, nil))
         return max(lead, accent)
     }()

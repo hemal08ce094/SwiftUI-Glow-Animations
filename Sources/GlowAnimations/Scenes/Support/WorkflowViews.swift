@@ -17,13 +17,15 @@ enum WorkflowPalette {
     static let shadow = Color(hex: 0x6A3A22)
     static let litGlow = Color(hex: 0xFF7A30)
     static let halo = Color(hex: 0xF0B08A)
-    /// Cream measured down the stage edge at f0480.
+    /// Cream measured down the stage edge at f0480, lifted ~4 levels so the recorded frame lands on the reference.
     static let creamStops: [Gradient.Stop] = [
-        .init(color: Color(hex: 0xF3ECE7), location: 0), .init(color: Color(hex: 0xF5ECE3), location: 0.25),
-        .init(color: Color(hex: 0xF4E5D9), location: 0.5), .init(color: Color(hex: 0xF3E2D4), location: 0.78),
-        .init(color: Color(hex: 0xF2E3D2), location: 1),
+        .init(color: Color(hex: 0xF7F1EC), location: 0), .init(color: Color(hex: 0xF7F0E8), location: 0.25),
+        .init(color: Color(hex: 0xF7E9DD), location: 0.5), .init(color: Color(hex: 0xF6E6D7), location: 0.78),
+        .init(color: Color(hex: 0xF6E7D6), location: 1),
     ]
-    static let warmBlob = Color(hex: 0xF4D3B8)
+    static let warmBlob = Color(hex: 0xF8D6BC)
+    /// A faint darker arc left over from the rhythm scene's arcs, centre (360, 190), radius ~155.
+    static let ghostArc = Color(hex: 0x6A5040)
     /// The merged dot on black at f0620, sampled at 0, 4, 6, 8, 10, 14, 20, 30 and 40 px.
     static let finalDot: [(Double, UInt32)] = [
         (0, 0xFFFBF5), (4, 0xFEFEFB), (6, 0xFFEC98), (8, 0xFFC64C), (10, 0xF8B247), (14, 0xBC8539),
@@ -36,8 +38,14 @@ struct WorkflowBackdrop: View {
     var body: some View {
         ZStack {
             LinearGradient(stops: WorkflowPalette.creamStops, startPoint: .top, endPoint: .bottom)
-            RadialGradient(colors: [WorkflowPalette.warmBlob.opacity(0.55), WorkflowPalette.warmBlob.opacity(0)],
+            RadialGradient(colors: [WorkflowPalette.warmBlob.opacity(0.6), WorkflowPalette.warmBlob.opacity(0)],
                            center: UnitPoint(x: 0.5, y: 1000.0 / 1280), startRadius: 0, endRadius: 330)
+            Path { p in
+                p.addArc(center: CGPoint(x: 360, y: 190), radius: 155,
+                         startAngle: .degrees(195), endAngle: .degrees(345), clockwise: false)
+            }
+            .stroke(WorkflowPalette.ghostArc.opacity(0.03), lineWidth: 24)
+            .blur(radius: 8)
         }
         .frame(width: 720, height: 1280)
     }

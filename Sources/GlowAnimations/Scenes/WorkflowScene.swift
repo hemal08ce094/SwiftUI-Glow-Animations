@@ -71,14 +71,21 @@ private struct WorkflowDiagram: View {
         .frame(width: 720, height: 1280)
     }
 
+    /// The merge flash at f0617, sampled outward from the centre (white to ~20 px, warm cream to ~80 px).
+    private static let flashStops: [Gradient.Stop] = [
+        .init(color: .white, location: 0), .init(color: .white, location: 0.22),
+        .init(color: Color(hex: 0xFFFBE1), location: 0.33), .init(color: Color(hex: 0xFEF3DC), location: 0.49),
+        .init(color: Color(hex: 0xFDECDB).opacity(0.85), location: 0.62),
+        .init(color: Color(hex: 0xF9E8D8).opacity(0.5), location: 0.78), .init(color: Color(hex: 0xF9E8D8).opacity(0), location: 1),
+    ]
+
     @ViewBuilder
     private var mergeFlash: some View {
         if model.mergeFlash > 0 || model.mergeRing > 0 || model.mergeCore > 0 {
             ZStack {
                 Circle()
-                    .fill(RadialGradient(colors: [Color.white, Color(hex: 0xFFF6E0).opacity(0.7), Color.white.opacity(0)],
-                                         center: .center, startRadius: 0, endRadius: 45))
-                    .frame(width: 90, height: 90)
+                    .fill(RadialGradient(stops: Self.flashStops, center: .center, startRadius: 0, endRadius: 90))
+                    .frame(width: 180, height: 180)
                     .opacity(model.mergeFlash)
                 Circle()
                     .fill(RadialGradient(colors: [Color(hex: 0xFFE798), Color(hex: 0xFBC25D), Color(hex: 0xCB944C).opacity(0)],

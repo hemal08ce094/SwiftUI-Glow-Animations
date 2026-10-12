@@ -214,7 +214,7 @@ struct DetailsCardFace: View {
                 .init(text: "make it ", font: GlowFonts.sans(weight: .light, size: Self.subtitleSize)),
                 .init(text: "real", font: GlowFonts.serifItalic(size: Self.accentSize)),
             ],
-            color: Color.white.opacity(0.86),
+            color: Color.white.opacity(0.72),
             time: state.frame, start: reveal.start, spread: reveal.spread, duration: reveal.duration, blur: 6
         )
     }
