@@ -17,26 +17,34 @@ public struct WorkflowScene: View {
         let model = WorkflowModel(t: t)
         ZStack {
             Color.black
-            Group {
-                if Self.motionBlur.contains(model.frame) {
-                    ForEach(0..<3, id: \.self) { i in
-                        WorkflowDiagram(model: WorkflowModel(frame: model.frame + 0.2 * Double(i - 1)))
-                            .compositingGroup()
-                            .opacity(1 / Double(i + 1))
+            if model.blackRadius < Self.stageHalfDiagonal {
+                diagram(model)
+                    .mask {
+                        Circle()
+                            .frame(width: 2 * model.creamRadius, height: 2 * model.creamRadius)
+                            .position(x: 360, y: 640)
                     }
-                } else {
-                    WorkflowDiagram(model: model)
-                }
-            }
-            .mask {
-                Circle()
-                    .frame(width: 2 * model.creamRadius, height: 2 * model.creamRadius)
-                    .position(x: 360, y: 640)
             }
             if model.showsHandoffDot { WorkflowHandoffDot() }
             WorkflowFinale(model: model)
         }
         .frame(width: 720, height: 1280)
+    }
+
+    /// Distance from the stage centre to a corner: a wipe this large covers the stage.
+    private static let stageHalfDiagonal = 735.0
+
+    @ViewBuilder
+    private func diagram(_ model: WorkflowModel) -> some View {
+        if Self.motionBlur.contains(model.frame) {
+            ForEach(0..<3, id: \.self) { i in
+                WorkflowDiagram(model: WorkflowModel(frame: model.frame + 0.2 * Double(i - 1)))
+                    .compositingGroup()
+                    .opacity(1 / Double(i + 1))
+            }
+        } else {
+            WorkflowDiagram(model: model)
+        }
     }
 }
 
