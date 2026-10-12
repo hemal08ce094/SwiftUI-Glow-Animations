@@ -24,6 +24,9 @@ public struct GlowPlayer: View {
     /// Seconds of solid `leadInColor` shown before t = 0; the cut to the scene is hard.
     public var leadIn: Double
     public var leadInColor: Color
+    /// Drawn above the stage on every display frame with the program time of that frame
+    /// (nil during the lead-in). The recording harness uses it for a frame clock.
+    public var timeOverlay: ((Double?) -> AnyView)?
 
     @State private var clock = ProgramClock()
 
@@ -34,7 +37,8 @@ public struct GlowPlayer: View {
         onStageRect: ((CGRect) -> Void)? = nil,
         onStart: ((Date) -> Void)? = nil,
         leadIn: Double = 0,
-        leadInColor: Color = .black
+        leadInColor: Color = .black,
+        timeOverlay: ((Double?) -> AnyView)? = nil
     ) {
         self.program = program
         self.loop = loop
@@ -43,6 +47,7 @@ public struct GlowPlayer: View {
         self.onStart = onStart
         self.leadIn = leadIn
         self.leadInColor = leadInColor
+        self.timeOverlay = timeOverlay
     }
 
     public init(scene: GlowScene, loop: Bool = true, startOffset: Double = 0) {
@@ -63,6 +68,9 @@ public struct GlowPlayer: View {
                 }
                 if elapsed == nil {
                     leadInColor
+                }
+                if let timeOverlay {
+                    timeOverlay(elapsed.map { time(elapsed: $0) })
                 }
             }
         }

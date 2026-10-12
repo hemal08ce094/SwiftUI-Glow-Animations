@@ -5,17 +5,21 @@
 # Usage: tools/record.sh <scene|reel> <seconds> [udid]
 #   scene    spark grow shape details rhythm workflow connects flow outro, or reel
 #   seconds  how much program time to capture
-#   udid     simulator to use; defaults to the first booted iPhone, else boots iPhone 17e
+#   udid     simulator to use; defaults to iPhone 17e (booted through devlock if needed)
 #
-# Output: tools/out/<scene>/capture.mp4, app.log, f0001.png ...
+# Output: tools/out/<scene>/capture.mp4, app.log, alignment.txt, f0001.png ...
 # Env:    SKIP_BUILD=1 reuses the last build in $DERIVED (default /tmp/glow-dd).
 #
-# Alignment: in chromeless mode the app shows pure green (#00FF00) from launch, holds it
-# for 1 s after the player appears, then hard-cuts to the scene at t = 0. Every frame of
-# the video is extracted and the first non-green frame after a green one becomes f0001.
-# GLOW_T0 (wall clock of t = 0) is logged for diagnostics only. Crop: the chromeless player fills the
-# screen and letterboxes a centred 9:16 stage, so the crop is the largest centred
-# 9:16 rect of the video. GLOW_STAGE_RECT in app.log records the rect in points.
+# Alignment: in chromeless mode the app draws a binary frame clock (TimecodeStrip in
+# PlayerScreen.swift) in the top letterbox bar, outside the 9:16 crop, on every display
+# frame: the program time of that very frame in 1/120 s. Every presented video frame is
+# decoded, its clock read, and frame n = 1 + round(30 t) is taken from the video frame whose
+# clock is closest to t = (n - 1) / 30. alignment.txt lists the mapping and the error per
+# frame; the run fails if a 30 fps slot has no video frame within a frame of it.
+# The green lead-in only warms the pipeline now; GLOW_T0 is logged for diagnostics.
+# Crop: the chromeless player fills the screen and letterboxes a centred 9:16 stage, so the
+# crop is the largest centred 9:16 rect of the video. GLOW_STAGE_RECT in app.log records
+# the rect in points, GLOW_TIMECODE_RECT the clock strip in pixels.
 set -euo pipefail
 
 SCENE="${1:?usage: record.sh <scene|reel> <seconds> [udid]}"
@@ -43,7 +47,8 @@ until mkdir "$LOCK" 2>/dev/null; do
   echo "record.sh: simulator busy, waiting..." >&2; sleep 10
 done
 echo $$ > "$LOCK/pid"
-trap 'rm -rf "$LOCK"' EXIT INT TERM
+WORK="$(mktemp -d /tmp/glow-frames.XXXXXX)"
+trap 'rm -rf "$LOCK" "$WORK"' EXIT INT TERM
 
 if [[ "$SCENE" == "reel" ]]; then
   APP_ARGS=(-glow-reel -glow-chromeless)
@@ -70,17 +75,16 @@ APP_LOG="$OUT/app.log"
 xcrun simctl io "$UDID" recordVideo --codec h264 --force "$VIDEO" 2>"$REC_LOG" &
 REC_PID=$!
 
-# Wait for the recorder, note the wall clock, then launch so t = 0 is on tape.
-REC_START="$(python3 - "$REC_LOG" <<'PY'
+# Wait for the recorder before launching so t = 0 is on tape.
+python3 - "$REC_LOG" <<'PY'
 import sys, time
 deadline = time.time() + 15
 while time.time() < deadline:
     if "Recording started" in open(sys.argv[1]).read():
-        print(f"{time.time():.4f}"); sys.exit()
+        sys.exit()
     time.sleep(0.005)
 sys.exit("recorder did not start")
 PY
-)"
 xcrun simctl launch --stderr="$APP_LOG" "$UDID" "$BUNDLE_ID" "${APP_ARGS[@]}" >/dev/null
 
 # Cover the 1 s green lead-in after GLOW_T0 is logged, the requested time and a margin.
@@ -98,51 +102,84 @@ xcrun simctl terminate "$UDID" "$BUNDLE_ID" 2>/dev/null || true
 grep GLOW_ "$APP_LOG" || true
 
 read -r VW VH < <(ffprobe -v error -select_streams v:0 -show_entries stream=width,height -of csv=p=0 "$VIDEO" | tr ',' ' ')
-CROP="$(python3 -c "
+read -r CROP CROP_Y < <(python3 -c "
 w, h = $VW, $VH
 if h / w > 16 / 9:
     cw, ch = w, round(w * 16 / 9)
 else:
     cw, ch = round(h * 9 / 16), h
-print(f'{cw}:{ch}:{(w - cw) // 2}:{(h - ch) // 2}')
-")"
+print(f'{cw}:{ch}:{(w - cw) // 2}:{(h - ch) // 2}', (h - ch) // 2)
+")
 echo "video ${VW}x${VH}, crop $CROP"
 
-FRAMES="$(python3 -c "print(round($SECONDS_TO_RECORD * 30))")"
-ALL="$(mktemp -d /tmp/glow-frames.XXXXXX)"
-trap 'rm -rf "$LOCK" "$ALL"' EXIT INT TERM
-ffmpeg -v error -y -i "$VIDEO" \
-  -vf "fps=30,crop=$CROP,scale=720:1280:flags=lanczos,setsar=1" "$ALL/a%05d.png"
-
-# Centre 20x20 average of every frame; green = G > 200 and R, B < 80.
-SYNC="$(python3 - "$ALL" <<'PY'
-import glob, subprocess, sys
-files = sorted(glob.glob(sys.argv[1] + "/a*.png"))
-def avg(path):
-    raw = subprocess.run(
-        ["ffmpeg", "-v", "error", "-i", path, "-vf", "crop=20:20:350:630,scale=1:1:flags=area",
-         "-f", "rawvideo", "-pix_fmt", "rgb24", "-"], capture_output=True, check=True).stdout
-    return raw[0], raw[1], raw[2]
-seen_green = False
-for i, f in enumerate(files, 1):
-    r, g, b = avg(f)
-    if g > 200 and r < 80 and b < 80:
-        seen_green = True
-    elif seen_green:
-        print(i)
-        sys.exit()
-sys.exit("record.sh: no green-to-scene transition found" if seen_green else "record.sh: no green sync frame found")
-PY
-)" || { echo "record.sh: sync marker detection failed" >&2; exit 1; }
-echo "sync frame: $SYNC (30 fps video frame that becomes f0001)"
-
-TOTAL="$(ls "$ALL"/a*.png | wc -l | tr -d ' ')"
-AVAILABLE=$((TOTAL - SYNC + 1))
-if (( AVAILABLE < FRAMES )); then
-  echo "record.sh: only $AVAILABLE frames after sync, wanted $FRAMES" >&2
-  exit 1
+read -r TX TY TW TH < <(grep GLOW_TIMECODE_RECT "$APP_LOG" | tail -1 | awk '{print $2, $3, $4, $5}')
+if [[ -z "${TH:-}" ]]; then
+  echo "record.sh: no GLOW_TIMECODE_RECT in app.log (old build? rebuild without SKIP_BUILD)" >&2; exit 1
 fi
-for ((n = 1; n <= FRAMES; n++)); do
-  mv "$ALL/$(printf 'a%05d.png' $((SYNC + n - 1)))" "$OUT/$(printf 'f%04d.png' "$n")"
-done
+if (( TY + TH > CROP_Y )); then
+  echo "record.sh: timecode strip (y $TY..$((TY + TH))) overlaps the stage crop (y $CROP_Y)" >&2; exit 1
+fi
+
+# Read the clock of every presented frame: inset the strip, average each cell to one pixel.
+CELLS=24
+ffmpeg -v error -y -i "$VIDEO" -fps_mode passthrough \
+  -vf "crop=${TW}:$((TH - 8)):${TX}:$((TY + 4)),scale=${CELLS}:1:flags=area" \
+  -f rawvideo -pix_fmt gray "$WORK/strip.raw"
+
+FRAMES="$(python3 -c "print(round($SECONDS_TO_RECORD * 30))")"
+# Writes plan.txt (one "k n" line per output frame: selected-video-frame ordinal k → f{n}),
+# select.txt (ffmpeg select expression) and alignment.txt (n, video frame, clock, error).
+python3 - "$WORK" "$FRAMES" "$CELLS" "$OUT/alignment.txt" <<'PY'
+import sys
+work, frames, cells, report = sys.argv[1], int(sys.argv[2]), int(sys.argv[3]), sys.argv[4]
+raw = open(f"{work}/strip.raw", "rb").read()
+total = len(raw) // cells
+clocks = {}
+for i in range(total):
+    px = raw[i * cells:(i + 1) * cells]
+    bits = [p > 128 for p in px]
+    if not (bits[0] and not bits[1] and bits[-1]):
+        continue
+    data = bits[2:-2]
+    if (sum(data) % 2 == 1) != bits[-2]:
+        continue
+    ticks = int("".join("1" if b else "0" for b in data), 2)
+    clocks[i] = ticks / 120.0
+if not clocks:
+    sys.exit("record.sh: no valid timecode frames found")
+first = min(clocks)
+plan, chosen, worst, late = [], {}, 0.0, []
+with open(report, "w") as out:
+    out.write("# n video_frame clock error_ms\n")
+    for n in range(1, frames + 1):
+        target = (n - 1) / 30
+        i, t = min(clocks.items(), key=lambda kv: abs(kv[1] - target))
+        err = t - target
+        worst = max(worst, abs(err))
+        if abs(err) > 1 / 90:
+            late.append((n, err))
+        chosen.setdefault(i, []).append(n)
+        out.write(f"{n} {i} {t:.4f} {err * 1000:+.1f}\n")
+indices = sorted(chosen)
+for k, i in enumerate(indices, 1):
+    for n in chosen[i]:
+        plan.append(f"{k} {n}")
+open(f"{work}/plan.txt", "w").write("\n".join(plan) + "\n")
+open(f"{work}/select.txt", "w").write("+".join(f"eq(n\\,{i})" for i in indices))
+print(f"timecode: {len(clocks)} of {total} video frames carry a clock; "
+      f"first clock at video frame {first} = t {clocks[first]:.3f}; "
+      f"worst error {worst * 1000:.1f} ms; {len(late)} frames off by more than 11 ms")
+if late[:10]:
+    print("  off-grid frames:", ", ".join(f"f{n:04d} {e * 1000:+.0f} ms" for n, e in late[:10]))
+if worst > 1 / 30:
+    sys.exit(f"record.sh: a 30 fps slot had no video frame within a frame of it ({worst * 1000:.1f} ms)")
+PY
+
+# Extract only the selected video frames, cropped to the stage and scaled to design units.
+ffmpeg -v error -y -i "$VIDEO" -fps_mode passthrough \
+  -vf "select='$(cat "$WORK/select.txt")',crop=$CROP,scale=720:1280:flags=lanczos,setsar=1" \
+  "$WORK/s%05d.png"
+while read -r k n; do
+  cp "$WORK/$(printf 's%05d.png' "$k")" "$OUT/$(printf 'f%04d.png' "$n")"
+done < "$WORK/plan.txt"
 echo "wrote $FRAMES frames to $OUT"

@@ -23,7 +23,8 @@ struct PlayerScreen: View {
             }, onStart: { date in
                 guard chromeless else { return }
                 HarnessLog.line(String(format: "GLOW_T0 %.4f", date.timeIntervalSince1970))
-            }, leadIn: chromeless ? 1.0 : 0, leadInColor: HarnessLog.syncGreen)
+            }, leadIn: chromeless ? 1.0 : 0, leadInColor: HarnessLog.syncGreen,
+               timeOverlay: chromeless ? { time in AnyView(TimecodeStrip(time: time)) } : nil)
             .id(runID)
             .ignoresSafeArea()
             .accessibilityElement()
@@ -84,6 +85,52 @@ struct PlayerScreen: View {
             Spacer()
         }
         .tint(GlowTheme.gold)
+    }
+}
+
+/// Frame clock tools/record.sh reads from the top letterbox bar, outside the 9:16 crop.
+/// 24 cells, left to right: white, black, 20 bits of program time in 1/120 s (MSB first),
+/// even parity, white. Hidden during the lead-in, so a frame with no valid clock is ignored.
+struct TimecodeStrip: View {
+    var time: Double?
+
+    static let ticksPerSecond = 120.0
+    static let bitCount = 20
+    static let cellCount = bitCount + 4
+    static let top: CGFloat = 8
+    static let height: CGFloat = 32
+
+    @Environment(\.displayScale) private var displayScale
+
+    var body: some View {
+        GeometryReader { geo in
+            Canvas { context, size in
+                guard let time else { return }
+                let cellWidth = size.width / CGFloat(Self.cellCount)
+                for (i, on) in Self.cells(for: time).enumerated() {
+                    let rect = CGRect(x: CGFloat(i) * cellWidth, y: 0, width: cellWidth, height: size.height)
+                    context.fill(Path(rect), with: .color(on ? .white : .black))
+                }
+            }
+            .frame(width: geo.size.width, height: Self.height)
+            .offset(y: Self.top)
+            .onAppear {
+                let frame = geo.frame(in: .global)
+                HarnessLog.line(String(
+                    format: "GLOW_TIMECODE_RECT %.0f %.0f %.0f %.0f",
+                    frame.minX * displayScale, (frame.minY + Self.top) * displayScale,
+                    frame.width * displayScale, Self.height * displayScale))
+            }
+        }
+        .ignoresSafeArea()
+        .allowsHitTesting(false)
+    }
+
+    static func cells(for time: Double) -> [Bool] {
+        let ticks = max(0, Int((time * ticksPerSecond).rounded())) & ((1 << bitCount) - 1)
+        let bits = (0..<bitCount).map { (ticks >> (bitCount - 1 - $0)) & 1 == 1 }
+        let parity = bits.filter { $0 }.count % 2 == 1
+        return [true, false] + bits + [parity, true]
     }
 }
 
