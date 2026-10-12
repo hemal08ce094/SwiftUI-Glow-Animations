@@ -8,17 +8,7 @@ public struct GrowScene: View {
 
     public init(t: Double) { self.t = t }
 
-    /// The stage's scene durations are rounded to 1 ms, so the reel can ask for one frame past
-    /// this scene's last reference frame; that frame belongs to scene 3.
     public var body: some View {
-        if GrowGeometry.startFrame + 30 * t >= 190.5 {
-            ShapeScene(t: t - 86.0 / 30)
-        } else {
-            content
-        }
-    }
-
-    private var content: some View {
         ZStack {
             Canvas(rendersAsynchronously: false) { context, _ in
                 GrowPainter(frame: GrowGeometry.startFrame + 30 * t).paint(context)

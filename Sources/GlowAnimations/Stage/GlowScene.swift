@@ -21,36 +21,48 @@ public enum GlowScene: String, CaseIterable, Identifiable, Sendable {
         }
     }
 
-    /// Scene length in seconds: the reference frame count / 30.
-    public var duration: Double {
+    public static let frameRate = 30.0
+
+    /// Scene length in reference frames at 30 fps.
+    public var frameCount: Int {
         switch self {
-        case .spark: 3.467
-        case .grow: 2.867
-        case .shape: 1.833
-        case .details: 2.367
-        case .rhythm: 5.133
-        case .workflow: 5.1
-        case .connects: 3.733
-        case .flow: 4.0
-        case .outro: 3.167
+        case .spark: 104
+        case .grow: 86
+        case .shape: 55
+        case .details: 71
+        case .rhythm: 154
+        case .workflow: 153
+        case .connects: 112
+        case .flow: 120
+        case .outro: 95
         }
     }
 
-    /// Reel time at which this scene starts.
-    public var reelStart: Double {
-        Self.allCases.prefix { $0 != self }.reduce(0) { $0 + $1.duration }
+    /// Scene length in seconds.
+    public var duration: Double { Double(frameCount) / Self.frameRate }
+
+    /// First reel frame of this scene, 0-based.
+    public var firstFrame: Int {
+        Self.allCases.prefix { $0 != self }.reduce(0) { $0 + $1.frameCount }
     }
 
-    public static var reelDuration: Double {
-        allCases.reduce(0) { $0 + $1.duration }
-    }
+    /// Reel time at which this scene starts.
+    public var reelStart: Double { Double(firstFrame) / Self.frameRate }
+
+    public static var frameCount: Int { allCases.reduce(0) { $0 + $1.frameCount } }
+
+    public static var reelDuration: Double { Double(frameCount) / frameRate }
 
     /// Resolves a reel time to the scene playing then and the scene-local time.
+    /// Boundaries are exact frame counts, so reel frame k always lands in the scene that
+    /// owns reference frame k; a 0.1 ms tolerance absorbs clock rounding at the boundary.
     public static func locate(reelTime t: Double) -> (scene: GlowScene, localTime: Double) {
-        var start = 0.0
+        let frames = t * frameRate + 1e-4 * frameRate
         for scene in allCases {
-            if t < start + scene.duration { return (scene, max(0, t - start)) }
-            start += scene.duration
+            let start = Double(scene.firstFrame)
+            if frames < start + Double(scene.frameCount) {
+                return (scene, max(0, t - scene.reelStart))
+            }
         }
         let last = allCases[allCases.count - 1]
         return (last, last.duration)

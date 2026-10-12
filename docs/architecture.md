@@ -47,8 +47,14 @@ en-GB, en-AU, en-CA, es-MX). Launch arguments:
 ## Harness (tools/)
 
 - `record.sh <scene|reel> <seconds> [udid]` builds through devlock, records the simulator
-  with `simctl io recordVideo`, trims the video to the app's `GLOW_T0`, crops the centred
-  9:16 stage and writes 30 fps 720 x 1280 frames to `tools/out/<scene>/f%04d.png`.
+  with `simctl io recordVideo`, crops the centred 9:16 stage and writes 30 fps 720 x 1280
+  frames to `tools/out/<scene>/f%04d.png`. Alignment comes from a 24-cell binary timecode
+  the chromeless player draws in the top letterbox bar (`TimecodeStrip`, outside the crop)
+  on every display frame; the script decodes it from every presented video frame and takes
+  each 30 fps slot from the frame whose clock is closest, writing `alignment.txt` with the
+  per-frame error. `seconds` must not exceed the program duration (the player loops).
+- `side-by-side.sh [dir]` turns a full-reel take into `samples/`: our reel as mp4, a
+  side-by-side mp4 against `reference/reel.mp4`, a key-frame sheet and four stills.
 - `compare.sh <scene> <refStart> <ourStart> <count>` writes `tools/out/<scene>/compare.png`,
   with one [reference | ours] row for every 5th frame.
 - `compare-sheet.sh <scene> "<ref frames>" "<our frames>"` builds the same sheet from

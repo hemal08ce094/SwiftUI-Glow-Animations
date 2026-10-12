@@ -9,7 +9,8 @@
 #   udid     simulator to use; defaults to iPhone 17e (booted through devlock if needed)
 #
 # Output: tools/out/<scene>/capture.mp4, app.log, alignment.txt, f0001.png ...
-# Env:    SKIP_BUILD=1 reuses the last build in $DERIVED (default /tmp/glow-dd).
+# Env:    SKIP_BUILD=1 reuses the last build in $DERIVED (default /tmp/glow-dd);
+#         SKIP_RECORD=1 re-extracts frames from the take already in tools/out/<scene>.
 #
 # Alignment: in chromeless mode the app draws a binary frame clock (TimecodeStrip in
 # PlayerScreen.swift) in the top letterbox bar, outside the 9:16 crop, on every display
@@ -57,6 +58,15 @@ else
   APP_ARGS=(-glow-scene "$SCENE" -glow-chromeless)
 fi
 
+VIDEO="$OUT/capture.mp4"
+REC_LOG="$OUT/recorder.log"
+APP_LOG="$OUT/app.log"
+
+# SKIP_RECORD=1 re-extracts frames from the take already in $OUT (no build, no simulator).
+if [[ "${SKIP_RECORD:-0}" == "1" ]]; then
+  [[ -f "$VIDEO" && -f "$APP_LOG" ]] || { echo "record.sh: no take in $OUT to re-extract" >&2; exit 1; }
+  rm -f "$OUT"/f*.png "$OUT/alignment.txt"
+else
 if [[ "${SKIP_BUILD:-0}" != "1" ]]; then
   "$DEVLOCK" run xcodebuild -project "$ROOT/Demo/GlowAnimationsDemo.xcodeproj" \
     -scheme GlowAnimationsDemo \
@@ -69,9 +79,6 @@ xcrun simctl terminate "$UDID" "$BUNDLE_ID" 2>/dev/null || true
 
 rm -rf "$OUT"
 mkdir -p "$OUT"
-VIDEO="$OUT/capture.mp4"
-REC_LOG="$OUT/recorder.log"
-APP_LOG="$OUT/app.log"
 
 xcrun simctl io "$UDID" recordVideo --codec h264 --force "$VIDEO" 2>"$REC_LOG" &
 REC_PID=$!
@@ -99,6 +106,7 @@ PY
 kill -INT "$REC_PID"
 wait "$REC_PID" || true
 xcrun simctl terminate "$UDID" "$BUNDLE_ID" 2>/dev/null || true
+fi
 
 grep GLOW_ "$APP_LOG" || true
 
@@ -186,7 +194,7 @@ PY
 c=0
 while read -r expr; do
   c=$((c + 1))
-  ffmpeg -v error -y -i "$VIDEO" -fps_mode passthrough \
+  ffmpeg -nostdin -v error -y -i "$VIDEO" -fps_mode passthrough \
     -vf "select='$expr',crop=$CROP,scale=720:1280:flags=lanczos,setsar=1" \
     "$WORK/c${c}_%05d.png"
 done < "$WORK/select.txt"
