@@ -356,27 +356,22 @@ private struct SparkPainter {
         }
     }
 
-    private static let shockRadius = FrameTrack(origin: 1, [(86, 200), (87, 320), (88, 460), (89, 720), (90, 980)])
-    private static let shockStrength = FrameTrack(origin: 1, [(85.5, 0), (86, 0.3), (87, 1), (88, 1), (89, 0.6), (90, 0)])
-    private static let afterglowStrength = FrameTrack(origin: 1, [(88.4, 0), (89, 1), (89.6, 0)])
+    /// Expanding shock ring of the flash: sampled peak radius per frame (it reaches the corners at f0090).
+    private static let shockRadius = FrameTrack(origin: 1, [
+        (86, 200), (87, 320), (88, 460), (89, 562), (90, 690), (91, 760),
+    ])
+    private static let shockStrength = FrameTrack(origin: 1, [
+        (85.5, 0), (86, 0.3), (87, 1), (88, 0.9), (89, 0.95), (90, 1), (91, 0.5), (92, 0),
+    ])
 
     private func drawFlashRing(_ context: GraphicsContext) {
-        let centre = CGPoint(x: 360, y: 639.5)
         let strength = Self.shockStrength.value(at: t)
-        if strength > 0.001 {
-            let r = Self.shockRadius.value(at: t)
-            let width = 55.0
-            let outer = r + width
-            let peak = GlowRGB(hex: 0x40301C)
-            let ring = GlowProfile(stops: [
-                (0, .black), (max(0, r - width), .black), (r, peak), (outer, .black),
-            ])
-            ring.draw(in: context, at: centre, opacity: strength)
-        }
-        let after = Self.afterglowStrength.value(at: t)
-        if after > 0.001 {
-            GlowProfile([(0, 0x000000), (300, 0x000000), (500, 0x2C1204), (760, 0x3E1D08), (900, 0x3E1D08)])
-                .draw(in: context, at: centre, opacity: after)
-        }
+        guard strength > 0.001 else { return }
+        let r = Self.shockRadius.value(at: t)
+        let ring = GlowProfile(stops: [
+            (0, .black), (max(0, r - 130), .black), (r - 50, GlowRGB(hex: 0x2C180A)),
+            (r, GlowRGB(hex: 0x4E3C24)), (r + 25, GlowRGB(hex: 0x24160A)), (r + 60, .black),
+        ])
+        ring.draw(in: context, at: CGPoint(x: 360, y: 639.5), opacity: strength)
     }
 }
