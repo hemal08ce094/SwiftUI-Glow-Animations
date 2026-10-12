@@ -225,7 +225,9 @@ struct ConnectsTimeline {
 struct ConnectsCaption: View {
     var t: Double
 
-    static let fontSize: CGFloat = 41
+    /// Fitted to the f0700 word extents: "Everything" x 192–375, "connects" x 390–531.
+    static let fontSize: CGFloat = 40.1
+    static let accentSize: CGFloat = 46.2
     static let baselineY: CGFloat = 878.5
 
     var body: some View {
@@ -233,11 +235,11 @@ struct ConnectsCaption: View {
         let exit = Ease.clamp01((t - 3.34) / 0.45)
         let line = HStack(alignment: .firstTextBaseline, spacing: 0) {
             Text(verbatim: "Everything")
-                .font(GlowFonts.sans(weight: .regular, size: Self.fontSize))
+                .font(GlowFonts.sans(weight: .light, size: Self.fontSize))
                 .foregroundStyle(Color.white)
             Color.clear.frame(width: CaptionReveal.spaceWidth(fontSize: Self.fontSize), height: 1)
             Text(verbatim: "connects")
-                .font(GlowFonts.serifItalic(size: Self.fontSize))
+                .font(GlowFonts.serifItalic(size: Self.accentSize))
                 .foregroundStyle(
                     LinearGradient(
                         colors: [Color(hex: 0xEC9440), Color(hex: 0xF5C88A)],
