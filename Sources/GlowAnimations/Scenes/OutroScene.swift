@@ -151,7 +151,7 @@ struct OutroTimeline {
 struct OutroCredit: View {
     var t: Double
 
-    static let fontSize: CGFloat = 36.5
+    static let fontSize: CGFloat = 37.3
     static let baselineY: CGFloat = 699.5
 
     var body: some View {
@@ -162,7 +162,7 @@ struct OutroCredit: View {
             Text(verbatim: ".fr")
                 .foregroundStyle(Color(hex: 0xEBC294))
         }
-        .font(GlowFonts.sans(weight: .regular, size: Self.fontSize))
+        .font(GlowFonts.sans(weight: .light, size: Self.fontSize))
         .fixedSize()
         .blurWipe(progress: reveal, edgeWidth: 100)
         .alignmentGuide(VerticalAlignment.top) { $0[.firstTextBaseline] }
