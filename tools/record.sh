@@ -4,7 +4,8 @@
 #
 # Usage: tools/record.sh <scene|reel> <seconds> [udid]
 #   scene    spark grow shape details rhythm workflow connects flow outro, or reel
-#   seconds  how much program time to capture
+#   seconds  how much program time to capture; at most the program's duration (the
+#            player loops past it, so later slots would map back to early frames)
 #   udid     simulator to use; defaults to iPhone 17e (booted through devlock if needed)
 #
 # Output: tools/out/<scene>/capture.mp4, app.log, alignment.txt, f0001.png ...
@@ -161,11 +162,16 @@ with open(report, "w") as out:
         chosen.setdefault(i, []).append(n)
         out.write(f"{n} {i} {t:.4f} {err * 1000:+.1f}\n")
 indices = sorted(chosen)
-for k, i in enumerate(indices, 1):
-    for n in chosen[i]:
-        plan.append(f"{k} {n}")
+# ffmpeg's expression parser gives up around 100 terms, so select in chunks of 40.
+chunk = 40
+groups = [indices[s:s + chunk] for s in range(0, len(indices), chunk)]
+for c, group in enumerate(groups, 1):
+    for k, i in enumerate(group, 1):
+        for n in chosen[i]:
+            plan.append(f"{c} {k} {n}")
 open(f"{work}/plan.txt", "w").write("\n".join(plan) + "\n")
-open(f"{work}/select.txt", "w").write("+".join(f"eq(n\\,{i})" for i in indices))
+open(f"{work}/select.txt", "w").write(
+    "\n".join("+".join(f"eq(n\\,{i})" for i in group) for group in groups) + "\n")
 print(f"timecode: {len(clocks)} of {total} video frames carry a clock; "
       f"first clock at video frame {first} = t {clocks[first]:.3f}; "
       f"worst error {worst * 1000:.1f} ms; {len(late)} frames off by more than 11 ms")
@@ -175,11 +181,16 @@ if worst > 1 / 30:
     sys.exit(f"record.sh: a 30 fps slot had no video frame within a frame of it ({worst * 1000:.1f} ms)")
 PY
 
-# Extract only the selected video frames, cropped to the stage and scaled to design units.
-ffmpeg -v error -y -i "$VIDEO" -fps_mode passthrough \
-  -vf "select='$(cat "$WORK/select.txt")',crop=$CROP,scale=720:1280:flags=lanczos,setsar=1" \
-  "$WORK/s%05d.png"
-while read -r k n; do
-  cp "$WORK/$(printf 's%05d.png' "$k")" "$OUT/$(printf 'f%04d.png' "$n")"
+# Extract only the selected video frames, cropped to the stage and scaled to design units,
+# one ffmpeg pass per chunk of the select expression.
+c=0
+while read -r expr; do
+  c=$((c + 1))
+  ffmpeg -v error -y -i "$VIDEO" -fps_mode passthrough \
+    -vf "select='$expr',crop=$CROP,scale=720:1280:flags=lanczos,setsar=1" \
+    "$WORK/c${c}_%05d.png"
+done < "$WORK/select.txt"
+while read -r c k n; do
+  cp "$WORK/c${c}_$(printf '%05d.png' "$k")" "$OUT/$(printf 'f%04d.png' "$n")"
 done < "$WORK/plan.txt"
 echo "wrote $FRAMES frames to $OUT"
